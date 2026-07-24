@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
+const protect = require("../middleware/auth.middleware");
+
 const {
   createLead,
   getAllLeads,
@@ -10,16 +12,18 @@ const {
   getLeadStats,
 } = require("../controllers/lead.controller");
 
+
 router.post("/", createLead);
 
-router.get("/", getAllLeads);
 
-router.get("/stats", getLeadStats);
+router.get("/", protect, getAllLeads);
 
-router.get("/:id", getLeadById);
+router.get("/stats", protect, getLeadStats);
 
-router.patch("/:id", updateLeadStatus);
+router.get("/:id", protect, getLeadById);
 
-router.delete("/:id", deleteLead);
+router.patch("/:id", protect, updateLeadStatus);
+
+router.delete("/:id", protect, deleteLead);
 
 module.exports = router;
