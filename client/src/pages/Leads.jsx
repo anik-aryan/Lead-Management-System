@@ -1,7 +1,7 @@
 import Layout from "../components/Layout";
 import { useEffect, useState } from "react";
 import api from "../services/api";
-
+import toast from "react-hot-toast";
 
 export default function Leads() {
     const [leads, setLeads] = useState([]);
@@ -16,6 +16,8 @@ export default function Leads() {
     const [loading, setLoading] = useState(true);
 
     const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] =
+    useState("");
     const [status, setStatus] = useState("All");
     const fetchLeads = async () => {
     try {
@@ -23,10 +25,12 @@ export default function Leads() {
 
         const query = new URLSearchParams();
 
-        if (search) {
-        query.append("search", search);
+        if (debouncedSearch) {
+        query.append(
+            "search",
+            debouncedSearch
+        );
         }
-
         if (status !== "All") {
         query.append("status", status);
         }
@@ -53,9 +57,73 @@ export default function Leads() {
     }
     };
 
-    useEffect(() => {
+   const handleStatusChange = async (
+    leadId,
+    newStatus
+    ) => {
+    console.log("Changing:", leadId, newStatus);
+
+    try {
+        const res = await api.patch(
+        `/leads/${leadId}`,
+        {
+            status: newStatus,
+        }
+        );
+
+        console.log(res.data);
+
+        toast.success(
+        `Lead marked as ${newStatus}`
+        );
+
         fetchLeads();
-    }, [search, status]);
+        fetchStats();
+    } catch (error) {
+        console.log(error);
+        toast.error("Failed");
+    }
+    };
+
+    const handleDelete = async (
+        leadId
+        ) => {
+        const confirmDelete =
+            window.confirm(
+            "Delete this lead?"
+            );
+
+        if (!confirmDelete) return;
+
+        try {
+            await api.delete(
+            `/leads/${leadId}`
+            );
+
+            toast.success(
+            "Lead deleted successfully"
+            );
+
+            fetchLeads();
+            fetchStats();
+        } catch (error) {
+            toast.error(
+            "Failed to delete lead"
+            );
+        }
+    };
+
+    useEffect(() => {
+    const timer = setTimeout(() => {
+        setDebouncedSearch(search);
+    }, 500);
+
+    return () => clearTimeout(timer);
+    }, [search]);
+
+    useEffect(() => {
+    fetchLeads();
+    }, [debouncedSearch, status]);
 
     useEffect(() => {
      fetchStats();
@@ -153,42 +221,44 @@ export default function Leads() {
 
         {/* Desktop Table */}
         <div className="hidden lg:block bg-white rounded-3xl border border-gray-200 overflow-hidden">
-
-          <table className="w-full">
+        <table className="w-full">
 
             <thead className="border-b border-gray-100">
-
-              <tr className="text-xs uppercase tracking-wide text-gray-400">
+            <tr className="text-xs uppercase tracking-wide text-gray-400">
 
                 <th className="text-left px-6 py-5">
-                  Lead
+                Lead
                 </th>
 
                 <th className="text-left px-6 py-5">
-                  Budget
+                Budget
                 </th>
 
                 <th className="text-left px-6 py-5">
-                  Message
+                Message
                 </th>
 
                 <th className="text-left px-6 py-5">
-                  Status
+                Status
                 </th>
 
                 <th className="text-left px-6 py-5">
-                  Created
+                Created
                 </th>
 
-              </tr>
+                <th className="text-left px-6 py-5">
+                Actions
+                </th>
 
+            </tr>
             </thead>
 
-           <tbody>
+            <tbody>
+
             {leads.length === 0 ? (
                 <tr>
                 <td
-                    colSpan="5"
+                    colSpan="6"
                     className="text-center py-10 text-gray-500"
                 >
                     No Leads Found
@@ -200,8 +270,10 @@ export default function Leads() {
                     key={lead._id}
                     className="border-b border-gray-100 hover:bg-gray-50 transition"
                 >
+
                     <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
+
                         <div className="h-11 w-11 rounded-full bg-lime-100 flex items-center justify-center font-semibold">
                         {lead.name
                             ?.split(" ")
@@ -219,11 +291,12 @@ export default function Leads() {
                             {lead.email}
                         </p>
                         </div>
+
                     </div>
                     </td>
 
                     <td className="px-6 py-5 font-medium">
-                    {lead.budget}
+                    ₹{lead.budget}
                     </td>
 
                     <td className="px-6 py-5 max-w-xs truncate text-gray-600">
@@ -231,23 +304,46 @@ export default function Leads() {
                     </td>
 
                     <td className="px-6 py-5">
-                    {lead.status === "New" && (
-                        <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium">
-                        New
-                        </span>
-                    )}
 
-                    {lead.status === "Contacted" && (
-                        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
-                        Contacted
-                        </span>
-                    )}
+                    <div className="flex items-center gap-3">
 
-                    {lead.status === "Closed" && (
-                        <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-                        Closed
+                        <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            lead.status === "New"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : lead.status === "Contacted"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                        >
+                        {lead.status}
                         </span>
-                    )}
+
+                        <select
+                        value={lead.status}
+                        onChange={(e) =>
+                            handleStatusChange(
+                            lead._id,
+                            e.target.value
+                            )
+                        }
+                        className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white"
+                        >
+                        <option value="New">
+                            New
+                        </option>
+
+                        <option value="Contacted">
+                            Contacted
+                        </option>
+
+                        <option value="Closed">
+                            Closed
+                        </option>
+                        </select>
+
+                    </div>
+
                     </td>
 
                     <td className="px-6 py-5 text-gray-500">
@@ -255,72 +351,126 @@ export default function Leads() {
                         lead.createdAt
                     ).toLocaleDateString()}
                     </td>
+
+                    <td className="px-6 py-5">
+
+                    <button
+                        onClick={() =>
+                        handleDelete(
+                            lead._id
+                        )
+                        }
+                        className="text-red-500 hover:text-red-700 font-medium"
+                    >
+                        Delete
+                    </button>
+
+                    </td>
+
                 </tr>
                 ))
             )}
+
             </tbody>
 
-          </table>
-
+        </table>
         </div>
 
         {/* Mobile Cards */}
         <div className="lg:hidden space-y-4">
-            {leads.length === 0 ? (
-                <div className="bg-white rounded-3xl border border-gray-200 p-5 text-center text-gray-500">
-                No Leads Found
-                </div>
-            ) : (
-                leads.map((lead) => (
-                <div
-                    key={lead._id}
-                    className="bg-white rounded-3xl border border-gray-200 p-5"
-                >
-                    <h3 className="font-semibold">
-                    {lead.name}
-                    </h3>
 
-                    <p className="text-sm text-gray-500 mt-1">
-                    {lead.email}
-                    </p>
+        {leads.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-gray-200 p-5 text-center text-gray-500">
+            No Leads Found
+            </div>
+        ) : (
+            leads.map((lead) => (
+            <div
+                key={lead._id}
+                className="bg-white rounded-3xl border border-gray-200 p-5"
+            >
 
-                    <p className="mt-3 font-medium">
-                    {lead.budget}
-                    </p>
+                <h3 className="font-semibold">
+                {lead.name}
+                </h3>
 
-                    <p className="mt-2 text-sm text-gray-600">
-                    {lead.message}
-                    </p>
+                <p className="text-sm text-gray-500 mt-1">
+                {lead.email}
+                </p>
 
-                    <div className="mt-3">
-                    {lead.status === "New" && (
-                        <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs">
+                <p className="mt-3 font-medium">
+                ₹{lead.budget}
+                </p>
+
+                <p className="mt-2 text-sm text-gray-600">
+                {lead.message}
+                </p>
+
+                <div className="mt-4 flex items-center justify-between">
+
+                <div className="flex items-center gap-3">
+
+                    <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        lead.status === "New"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : lead.status === "Contacted"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-green-100 text-green-700"
+                    }`}
+                    >
+                    {lead.status}
+                    </span>
+
+                    <select
+                    value={lead.status}
+                    onChange={(e) =>
+                        handleStatusChange(
+                        lead._id,
+                        e.target.value
+                        )
+                    }
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white"
+                    >
+                    <option value="New">
                         New
-                        </span>
-                    )}
+                    </option>
 
-                    {lead.status === "Contacted" && (
-                        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs">
+                    <option value="Contacted">
                         Contacted
-                        </span>
-                    )}
+                    </option>
 
-                    {lead.status === "Closed" && (
-                        <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs">
+                    <option value="Closed">
                         Closed
-                        </span>
-                    )}
-                    </div>
+                    </option>
+                    </select>
 
-                    <p className="mt-3 text-xs text-gray-500">
-                    {new Date(
-                        lead.createdAt
-                    ).toLocaleDateString()}
-                    </p>
                 </div>
-                ))
-            )}
-         </div>
+
+                <button
+                    onClick={() =>
+                    handleDelete(
+                        lead._id
+                    )
+                    }
+                    className="text-red-500 font-medium"
+                >
+                    Delete
+                </button>
+
+                </div>
+
+                <p className="mt-3 text-xs text-gray-500">
+                {new Date(
+                    lead.createdAt
+                ).toLocaleDateString()}
+                </p>
+
+            </div>
+            ))
+        )}
+
+        </div>
 
       </div>
     </Layout>

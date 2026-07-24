@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { Menu, X, LogOut, User, ClipboardList } from "lucide-react";
 import { useState } from "react";
+import api from "../services/api";
 
 export default function Sidebar() {
   const [open, setOpen] = useState(false);
@@ -9,11 +10,13 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      navigate("/admin/login");
+        await api.post("/auth/logout");
+
+        navigate("/admin/login");
     } catch (error) {
-      console.log(error);
+        console.log(error);
     }
-  };
+ };
 
   const navLinkClass = ({ isActive }) =>
     `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
