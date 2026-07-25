@@ -29,6 +29,17 @@ export default function Footer() {
               customer enquiries efficiently with a modern lead management
               system.
             </p>
+                    <p className="text-gray-400 mt-5 leading-7">
+                Built for{" "}
+                <a
+                href="https://digitalheroesco.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-green-600 font-semibold hover:underline"
+                >
+                Digital Heroes Training Task
+                </a>
+            </p>
           </div>
 
           
