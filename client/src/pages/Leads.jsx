@@ -4,142 +4,152 @@ import api from "../services/api";
 import toast from "react-hot-toast";
 
 export default function Leads() {
-    const [leads, setLeads] = useState([]);
+  const [leads, setLeads] = useState([]);
 
-    const [stats, setStats] = useState({
+  const [stats, setStats] = useState({
     total: 0,
     newLeads: 0,
     contacted: 0,
     closed: 0,
-    });
+  });
 
-    const [loading, setLoading] = useState(true);
+  
+  const [loading, setLoading] = useState(true);
 
-    const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] =
-    useState("");
-    const [status, setStatus] = useState("All");
-    const fetchLeads = async () => {
+ 
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  
+  const [status, setStatus] = useState("All");
+
+  
+  const fetchLeads = async (showLoader = false) => {
     try {
+      if (showLoader) {
         setLoading(true);
+      } else {
+        setSearchLoading(true);
+      }
 
-        const query = new URLSearchParams();
+      const query = new URLSearchParams();
 
-        if (debouncedSearch) {
-        query.append(
-            "search",
-            debouncedSearch
-        );
-        }
-        if (status !== "All") {
+      if (debouncedSearch.trim()) {
+        query.append("search", debouncedSearch.trim());
+      }
+
+      if (status !== "All") {
         query.append("status", status);
-        }
+      }
 
-        const res = await api.get(
-        `/leads?${query.toString()}`
-        );
+      const res = await api.get(`/leads?${query.toString()}`);
 
-        setLeads(res.data.data);
+      setLeads(res.data.data);
     } catch (error) {
-        console.log(error);
+      console.log(error);
     } finally {
+      if (showLoader) {
         setLoading(false);
-    }
-    };
+      }
 
-    const fetchStats = async () => {
+      setSearchLoading(false);
+    }
+  };
+
+
+  const fetchStats = async () => {
     try {
-        const res = await api.get("/leads/stats");
-
-        setStats(res.data.data);
+      const res = await api.get("/leads/stats");
+      setStats(res.data.data);
     } catch (error) {
-        console.log(error);
+      console.log(error);
     }
-    };
+  };
 
-   const handleStatusChange = async (
-    leadId,
-    newStatus
-    ) => {
-    console.log("Changing:", leadId, newStatus);
+ 
+  const handleStatusChange = async (leadId, newStatus) => {
+    try {
+      await api.patch(`/leads/${leadId}`, {
+        status: newStatus,
+      });
+
+      toast.success(`Lead marked as ${newStatus}`);
+
+     
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead._id === leadId
+            ? { ...lead, status: newStatus }
+            : lead
+        )
+      );
+
+      fetchStats();
+    } catch (error) {
+      console.log(error);
+      toast.error("Failed");
+    }
+  };
+
+  const handleDelete = async (leadId) => {
+    const confirmDelete = window.confirm(
+      "Delete this lead?"
+    );
+
+    if (!confirmDelete) return;
 
     try {
-        const res = await api.patch(
-        `/leads/${leadId}`,
-        {
-            status: newStatus,
-        }
-        );
+      await api.delete(`/leads/${leadId}`);
 
-        console.log(res.data);
+      toast.success("Lead deleted successfully");
 
-        toast.success(
-        `Lead marked as ${newStatus}`
-        );
+      
+      setLeads((prev) =>
+        prev.filter((lead) => lead._id !== leadId)
+      );
 
-        fetchLeads();
-        fetchStats();
+      fetchStats();
     } catch (error) {
-        console.log(error);
-        toast.error("Failed");
+      console.log(error);
+      toast.error("Failed to delete lead");
     }
-    };
+  };
 
-    const handleDelete = async (
-        leadId
-        ) => {
-        const confirmDelete =
-            window.confirm(
-            "Delete this lead?"
-            );
 
-        if (!confirmDelete) return;
-
-        try {
-            await api.delete(
-            `/leads/${leadId}`
-            );
-
-            toast.success(
-            "Lead deleted successfully"
-            );
-
-            fetchLeads();
-            fetchStats();
-        } catch (error) {
-            toast.error(
-            "Failed to delete lead"
-            );
-        }
-    };
-
-    useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
-        setDebouncedSearch(search);
-    }, 500);
+      setDebouncedSearch(search);
+    }, 400);
 
     return () => clearTimeout(timer);
-    }, [search]);
+  }, [search]);
 
-    useEffect(() => {
-    fetchLeads();
-    }, [debouncedSearch, status]);
+  
+  useEffect(() => {
+    fetchLeads(true);
+    fetchStats();
+  }, []);
 
-    useEffect(() => {
-     fetchStats();
-    }, []);
 
-    if (loading) {
+  useEffect(() => {
+    fetchLeads(false);
+  }, [debouncedSearch, status]);
+
+
+  if (loading) {
     return (
-        <Layout>
+      <Layout>
         <div className="flex items-center justify-center h-[70vh]">
-            <p className="text-lg font-medium">
+          <p className="text-lg font-medium">
             Loading leads...
-            </p>
+          </p>
         </div>
-        </Layout>
+      </Layout>
     );
-    }
+  }
 
   return (
     <Layout>
@@ -162,10 +172,8 @@ export default function Leads() {
             <input
                 type="text"
                 value={search}
-                onChange={(e) =>
-                    setSearch(e.target.value)
-                }
-                placeholder="Search leads..."
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name or email..."
                 className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-lime-400"
             />
             </div>

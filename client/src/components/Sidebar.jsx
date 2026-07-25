@@ -12,7 +12,9 @@ export default function Sidebar() {
     try {
         await api.post("/auth/logout");
 
-        navigate("/admin/login");
+        navigate("/admin/login", {
+          replace: true,
+        });
     } catch (error) {
         console.log(error);
     }
@@ -29,7 +31,7 @@ export default function Sidebar() {
     <>
       
       <button
-        className="lg:hidden fixed top-4 left-4 z-50 bg-black text-white p-2 rounded-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 w-11 h-11 flex items-center justify-center bg-[#111827] text-white rounded-xl shadow-lg border border-gray-700"
         onClick={() => setOpen(true)}
       >
         <Menu size={20} />
@@ -46,7 +48,7 @@ export default function Sidebar() {
       
       <aside
         className={`
-        fixed lg:static
+        fixed 
         top-0 left-0
         h-screen
         w-72

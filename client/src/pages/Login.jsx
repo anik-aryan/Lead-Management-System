@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect , useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
@@ -48,6 +48,18 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await api.get("/auth/me");
+
+        navigate("/admin/leads");
+      } catch (error) {}
+    };
+
+    checkAuth();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#f5f6f8] flex items-center justify-center p-4">
